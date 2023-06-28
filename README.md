@@ -44,7 +44,7 @@ go get github.com/robinjoseph08/redisqueue/v2
 Import:
 
 ```go
-import "github.com/robinjoseph08/redisqueue/v2"
+import "github.com/stuttgart-things/redisqueue"
 ```
 
 ## Example
@@ -55,35 +55,44 @@ Here's an example of a producer that inserts 1000 messages into a queue:
 package main
 
 import (
-	"fmt"
+        "fmt"
+        "os"
 
-	"github.com/robinjoseph08/redisqueue/v2"
+        "github.com/redis/go-redis/v9"
+
+        "github.com/stuttgart-things/redisqueue"
 )
 
 func main() {
-	p, err := redisqueue.NewProducerWithOptions(&redisqueue.ProducerOptions{
-		StreamMaxLength:      10000,
-		ApproximateMaxLength: true,
-	})
-	if err != nil {
-		panic(err)
-	}
 
-	for i := 0; i < 1000; i++ {
-		err := p.Enqueue(&redisqueue.Message{
-			Stream: "redisqueue:test",
-			Values: map[string]interface{}{
-				"index": i,
-			},
-		})
-		if err != nil {
-			panic(err)
-		}
+        p, err := redisqueue.NewProducerWithOptions(&redisqueue.ProducerOptions{
+                MaxLen:               10000,
+                ApproximateMaxLength: true,
+                RedisClient: redis.NewClient(&redis.Options{
+                        Addr:     os.Getenv("REDIS_SERVER") + ":" + os.Getenv("REDIS_PORT"),
+                        Password: os.Getenv("REDIS_PASSWORD"),
+                        DB:       0,
+                }),
+        })
+        if err != nil {
+                panic(err)
+        }
 
-		if i%100 == 0 {
-			fmt.Printf("enqueued %d\n", i)
-		}
-	}
+        for i := 0; i < 1000; i++ {
+                err := p.Enqueue(&redisqueue.Message{
+                        Stream: "q9:1",
+                        Values: map[string]interface{}{
+                                "index": i,
+                        },
+                })
+                if err != nil {
+                        panic(err)
+                }
+
+                if i%100 == 0 {
+                        fmt.Printf("enqueued %d\n", i)
+                }
+        }
 }
 ```
 
@@ -93,40 +102,47 @@ And here's an example of a consumer that reads the messages off of that queue:
 package main
 
 import (
-	"fmt"
-	"time"
+        "fmt"
+        "os"
+        "time"
 
-	"github.com/robinjoseph08/redisqueue/v2"
+        "github.com/redis/go-redis/v9"
+        "github.com/stuttgart-things/redisqueue"
 )
 
 func main() {
-	c, err := redisqueue.NewConsumerWithOptions(&redisqueue.ConsumerOptions{
-		VisibilityTimeout: 60 * time.Second,
-		BlockingTimeout:   5 * time.Second,
-		ReclaimInterval:   1 * time.Second,
-		BufferSize:        100,
-		Concurrency:       10,
-	})
-	if err != nil {
-		panic(err)
-	}
+        c, err := redisqueue.NewConsumerWithOptions(&redisqueue.ConsumerOptions{
+                VisibilityTimeout: 60 * time.Second,
+                BlockingTimeout:   5 * time.Second,
+                ReclaimInterval:   1 * time.Second,
+                BufferSize:        100,
+                Concurrency:       10,
+                RedisClient: redis.NewClient(&redis.Options{
+                        Addr:     os.Getenv("REDIS_SERVER") + ":" + os.Getenv("REDIS_PORT"),
+                        Password: os.Getenv("REDIS_PASSWORD"),
+                        DB:       0,
+                }),
+        })
+        if err != nil {
+                panic(err)
+        }
 
-	c.Register("redisqueue:test", process)
+        c.Register("q9:1", process)
 
-	go func() {
-		for err := range c.Errors {
-			// handle errors accordingly
-			fmt.Printf("err: %+v\n", err)
-		}
-	}()
+        go func() {
+                for err := range c.Errors {
+                        // handle errors accordingly
+                        fmt.Printf("err: %+v\n", err)
+                }
+        }()
 
-	fmt.Println("starting")
-	c.Run()
-	fmt.Println("stopped")
+        fmt.Println("starting")
+        c.Run()
+        fmt.Println("stopped")
 }
 
 func process(msg *redisqueue.Message) error {
-	fmt.Printf("processing message: %v\n", msg.Values["index"])
-	return nil
+        fmt.Printf("processing message: %v\n", msg.Values["index"])
+        return nil
 }
 ```
