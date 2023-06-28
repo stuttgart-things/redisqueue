@@ -1,7 +1,9 @@
 package redisqueue
 
 import (
-	"github.com/go-redis/redis/v7"
+	"context"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // ProducerOptions provide options to configure the Producer.
@@ -14,7 +16,7 @@ type ProducerOptions struct {
 	// and the maximum is reached, unprocessed message will start to be dropped.
 	// So ideally, you'll set this number to be as high as you can makee it.
 	// More info here: https://redis.io/commands/xadd#capped-streams.
-	StreamMaxLength int64
+	MaxLen int64
 	// ApproximateMaxLength determines whether to use the ~ with the MAXLEN
 	// option. This allows the stream trimming to done in a more efficient
 	// manner. More info here: https://redis.io/commands/xadd#capped-streams.
@@ -39,7 +41,7 @@ type Producer struct {
 }
 
 var defaultProducerOptions = &ProducerOptions{
-	StreamMaxLength:      1000,
+	MaxLen:               1000,
 	ApproximateMaxLength: true,
 }
 
@@ -81,11 +83,11 @@ func (p *Producer) Enqueue(msg *Message) error {
 		Values: msg.Values,
 	}
 	if p.options.ApproximateMaxLength {
-		args.MaxLenApprox = p.options.StreamMaxLength
+		args.MaxLen = p.options.MaxLen
 	} else {
-		args.MaxLen = p.options.StreamMaxLength
+		args.MaxLen = p.options.MaxLen
 	}
-	id, err := p.redis.XAdd(args).Result()
+	id, err := p.redis.XAdd(context.TODO(), args).Result()
 	if err != nil {
 		return err
 	}
