@@ -1,4 +1,4 @@
-# redisqueue
+# stuttgart-things/redisqueue
 
 ![Version](https://img.shields.io/badge/version-v2.1.0-green.svg)
 [![GoDoc](https://godoc.org/github.com/robinjoseph08/redisqueue?status.svg)](https://pkg.go.dev/github.com/robinjoseph08/redisqueue/v2?tab=doc)
@@ -38,7 +38,7 @@ versioning. So please make sure to initialize a Go module before installing
 
 ```sh
 go mod init github.com/my/repo
-go get github.com/robinjoseph08/redisqueue/v2
+go get github.com/stuttgart-things/redisqueue
 ```
 
 Import:
